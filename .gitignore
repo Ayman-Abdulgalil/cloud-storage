@@ -15,9 +15,9 @@ build/
 .env
 .env.local
 .env.*.local
-.env.prod
-.env.dev_back
-.env.dev_front
+.env.production
+.env.front_dev
+.env.back_dev
 
 # Database
 *.db

@@ -2,5 +2,6 @@ sqlalchemy
 minio
 fastapi
 uvicorn[standard]
-psycopg2-binary
+psycopg
+psycopg_binary
 python-multipart

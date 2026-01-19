@@ -1,29 +1,27 @@
-# storage/minio_client.py
 import os
 import uuid
 from dataclasses import dataclass
 from typing import BinaryIO, Optional
-
 from minio import Minio
 
 
 @dataclass(frozen=True)
 class MinioSettings:
-    endpoint: str = os.environ.get("MINIO_ENDPOINT", "localhost:9000")
+    endpoint: str = os.environ.get("MINIO_ENDPOINT", "minio_storage:9000")
     access_key: str = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
     secret_key: str = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
     bucket: str = os.environ.get("MINIO_BUCKET", "drive-objects")
-    secure: bool = os.environ.get("MINIO_SECURE", "0") == "1"
+    secure: bool = os.environ.get("MINIO_SECURE", "false").lower == "true"
 
 
 settings = MinioSettings()
 
 client = Minio(
-    settings.endpoint,
+    endpoint=settings.endpoint,
     access_key=settings.access_key,
     secret_key=settings.secret_key,
     secure=settings.secure,
-)  # Constructor signature is documented by MinIO.
+)
 
 
 def ensure_bucket() -> None:
@@ -50,7 +48,6 @@ def put_bytes(
 ) -> None:
     """
     Upload bytes as an object.
-
     - If you don't know length, pass length=-1 and keep a valid part_size
       (MinIO supports multipart uploads this way).
     """
@@ -63,7 +60,7 @@ def put_bytes(
         part_size=part_size if length == -1 else 0,
         content_type=content_type,
         metadata=metadata,
-    )  # put_object params (length, part_size, etc.) are documented.
+    )
 
 
 def get_object_stream(object_key: str):
@@ -73,3 +70,17 @@ def get_object_stream(object_key: str):
     """
     ensure_bucket()
     return client.get_object(settings.bucket, object_key)
+
+
+def delete_object(object_key: str) -> None:
+    """
+    Delete an object from MinIO storage.
+    
+    Args:
+        object_key: The S3-style object key to delete (e.g., "user_id/uuid")
+    
+    Raises:
+        Exception: If the object doesn't exist or deletion fails
+    """
+    ensure_bucket()
+    client.remove_object(settings.bucket, object_key)

@@ -1,4 +1,4 @@
-# Secure Drive (SEM) — Backend (Python + Linux)
+# Secure Drive
 
 ## Overview
 

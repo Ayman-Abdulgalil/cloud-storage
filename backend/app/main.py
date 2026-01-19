@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .db import engine
 from .models import Base
-from .api.objects import router as objects_router
+from .api.objects import objects_router
 
 app = FastAPI(title="Secure Drive")
 
@@ -24,11 +24,12 @@ if os.environ.get("SERVE_FRONTEND", "0") == "1":
                 "/", StaticFiles(directory=str(dist_path), html=True), name="frontend"
             )
 else:
+    frontend_port = os.environ.get("FRONTEND_PORT", 5173)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
+            "http://localhost:" + str(frontend_port),
+            "http://127.0.0.1:" + str(frontend_port),
         ],
         allow_credentials=True,
         allow_methods=["*"],

@@ -13,6 +13,14 @@ ENV/
 *.sqlite3
 postgres_data/
 
+# Environment
+.env
+.env.local
+.env.*.local
+.env.production
+.env.front_dev
+.env.back_dev
+
 # IDE
 .vscode/
 .idea/
@@ -27,14 +35,6 @@ postgres_data/
 Dockerfile
 docker-compose.yml
 .dockerignore
-
-# Environment
-.env
-.env.local
-.env.*.local
-.env.prod
-.env.dev_back
-.env.dev_fronts
 
 # Testing
 .pytest_cache/

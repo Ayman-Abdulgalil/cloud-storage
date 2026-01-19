@@ -1,94 +1,111 @@
-.PHONY: help dev-front dev-back prod build-frontend down clean logs shell migrate
+.PHONY: help dev-front dev-front-bg dev-back dev-back-bg production production-bg \
+        build-frontend build-frontend-nc build-backend build-backend-nc \
+        all-logs frontend-logs backend-logs postgres-logs minio-logs \
+        ps down restart-all restart-frontend restart-backend restart-postgres restart-minio \
+        shell-backend shell-postgres clean
+
+# Default target
+.DEFAULT_GOAL := help
 
 #==============================================================================
-# DEFAULT TARGET
+# VARIABLES
+#==============================================================================
+
+COMPOSE := docker-compose
+ENV_DEV_FRONT := .env.front_dev
+ENV_DEV_BACK := .env.back_dev
+ENV_PRODUCTION := .env.production
+
+#==============================================================================
+# HELP
 #==============================================================================
 
 help:
-	@echo "========================================================="
-	@echo "|  Available Commands"
-	@echo "========================================================="
-	@echo "|"
-	@echo "|    make                  - Show this help message"
-	@echo "|    make help             - Show this help message"
-	@echo "|"
-	@echo "|= Development:"
-	@echo "|    make dev-front        - Frontend development. Vite runs separately and uses"
-	@echo "|                            environment variables in .env.dev_front"
-	@echo "|    make dev-front-bg     - Same as dev-front but running in the background"
-	@echo "|    make dev-back         - Backend development. Frontend is served statically in"
-	@echo "|                            the same process. Uses .env.dev_back variables"
-	@echo "|                            NOTE: Assumes the frontend is ready to build"
-	@echo "|    make dev-back-bg      - Same as dev-back but running in the background"
-	@echo "|"
-	@echo "|= Production:"
-	@echo "|    make prod             - Production mode using .env.prod variables"
-	@echo "|    make prod-bg          - Same as prod but in the background"
-	@echo "|"
-	@echo "|= Building:"
-	@echo "|    make build-frontend   - Build frontend only"
-	@echo "|    make build-all        - Build all images"
-	@echo "|    make force-rebuild    - Rebuild images without the cache"
-	@echo "|"
-	@echo "|= Logs:"
-	@echo "|    make logs             - View all logs"
-	@echo "|    make logs-frontend    - View frontend logs only"
-	@echo "|    make logs-backend     - View backend logs only"
-	@echo "|    make logs-postgres    - View postgres logs only"
-	@echo "|"
-	@echo "|= Database:"
-	@echo "|    make backup-db        - Create a database backup in ./backups/CURRENT_PROFILE"
-	@echo "|    make restore-db       - Restores a database backup from ./backups/CURRENT_PROFILE"
-	@echo "|"
-	@echo "|= Operating:"
-	@echo "|    make ps               - Show container status"
-	@echo "|    make down             - Stop all containers"
-	@echo "|    make restart-frontend - Restart the frontend container"
-	@echo "|    make restart-backend  - Restart the backend container"
-	@echo "|    make shell-backend    - Open bash in backend container"
-	@echo "|    make shell-postgres   - Open psql in postgres container"
-	@echo "|    make clean            - Stop & remove volumes (WARNING: deletes DB)"
-	@echo "|"
-	@echo "|"
-	@echo "| NOTE: Make sure the containers are up and running before"
-	@echo "|       you run the Logs, Database,  or Operating commands"
-	@echo "|       Otherwise, the process will exit with error code 1"
-	@echo "|"
-	@echo "========================================================="
+	@echo "=========================================================="
+	@echo "                    Available Commands"
+	@echo "=========================================================="
+	@echo ""
+	@echo "  make  |  make help     - Show this help message"
+	@echo ""
+	@echo "Development:"
+	@echo "  make front-dev         - Frontend dev mode (Vite hot reload)"
+	@echo "  make front-dev-bg      - Frontend dev mode (background)"
+	@echo "  make back-dev          - Backend dev mode (FastAPI hot reload)"
+	@echo "  make back-dev-bg       - Backend dev mode (background)"
+	@echo ""
+	@echo "Production:"
+	@echo "  make production        - Production mode (static frontend)"
+	@echo "  make production-bg     - Production mode (background)"
+	@echo ""
+	@echo "Building:"
+	@echo "  make build-frontend    - Build frontend with cache"
+	@echo "  make build-frontend-nc - Build frontend without cache"
+	@echo "  make build-backend     - Build backend with cache"
+	@echo "  make build-backend-nc  - Build backend without cache"
+	@echo ""
+	@echo "Logs:"
+	@echo "  make all-logs          - View all logs"
+	@echo "  make frontend-logs     - View frontend logs"
+	@echo "  make backend-logs      - View backend logs"
+	@echo "  make postgres-logs     - View postgres logs"
+	@echo "  make minio-logs        - View minio logs"
+	@echo ""
+	@echo "Operations:"
+	@echo "  make ps                - Show container status"
+	@echo "  make down              - Stop all containers"
+	@echo "  make restart-all       - Restart all containers"
+	@echo "  make restart-frontend  - Restart frontend container"
+	@echo "  make restart-backend   - Restart backend container"
+	@echo "  make restart-postgres  - Restart postgres container"
+	@echo "  make restart-minio     - Restart minio container"
+	@echo "  make shell-backend     - Open bash in backend container"
+	@echo "  make shell-postgres    - Open psql in postgres container"
+	@echo "  make clean             - Stop & remove volumes (deletes data!)"
+	@echo ""
+	@echo "=========================================================="
 
 #==============================================================================
 # DEVELOPMENT TARGETS
 #==============================================================================
 
-# Frontend development (Vite server)
-dev-front:
-	@echo "Starting FRONTEND development mode..."
-	docker-compose --env-file .env.dev_front --profile dev_front up
+front-dev:
+	@echo "Starting frontend development mode..."
+	@ln -sf $(ENV_DEV_FRONT) .env && test -L .env
+	@$(COMPOSE) --profile front-dev up
 
-dev-front-bg:
-	@echo "Starting FRONTEND development mode in the background..."
-	docker-compose --env-file .env.dev_front --profile dev_front up -d
+front-dev-bg:
+	@echo "Starting frontend development mode (background)..."
+	@ln -sf $(ENV_DEV_FRONT) .env && test -L .env
+	@$(COMPOSE) --profile front-dev up -d
+	@echo "Containers started. Use 'make all-logs' to view logs"
 
-# Backend development (serves pre-built frontend statically)
-dev-back: check-frontend-built
-	@echo "Starting BACKEND development mode..."
-	docker-compose --env-file .env.dev_back --profile dev_back up
+back-dev:
+	@echo "Starting backend development mode..."
+	@ln -sf $(ENV_DEV_BACK) .env
+	@$(MAKE) build-frontend
+	@$(COMPOSE) --profile back-dev up
 
-dev-back-bg: check-frontend-built
-	@echo "Starting BACKEND development mode in the background..."
-	docker-compose --env-file .env.dev_back --profile dev_back up -d
+back-dev-bg:
+	@echo "Starting backend development mode (background)..."
+	@ln -sf $(ENV_DEV_BACK) .env && test -L .env
+	@$(MAKE) build-frontend
+	@$(COMPOSE) --profile back-dev up -d
+	@echo "Containers started. Use 'make all-logs' to view logs"
 
 #==============================================================================
 # PRODUCTION TARGETS
 #==============================================================================
 
-prod:
-	@echo "Starting PRODUCTION mode..."
-	docker-compose --env-file .env.prod --profile prod up
+production: build-frontend
+	@echo "Starting production mode..."
+	@ln -sf $(ENV_PRODUCTION) .env && \
+		$(COMPOSE) --profile prod up
 
-prod-bg:
-	@echo "Starting PRODUCTION mode in the background..."
-	docker-compose --env-file .env.prod --profile prod up -d
+production-bg: build-frontend
+	@echo "Starting production mode (background)..."
+	@ln -sf $(ENV_PRODUCTION) .env && \
+		$(COMPOSE) --profile prod up -d
+	@echo "Containers started. Use 'make all-logs' to view logs"
 
 #==============================================================================
 # BUILD TARGETS
@@ -96,132 +113,66 @@ prod-bg:
 
 build-frontend:
 	@echo "Building frontend..."
-	cd frontend && npm install && npm run build
+	@$(COMPOSE) build frontend
 
-build-all:
-	@echo "Building all Docker images..."
-	docker-compose build
+build-frontend-nc:
+	@echo "Building frontend without cache..."
+	@$(COMPOSE) build --no-cache frontend
 
-force-rebuild:
-	@echo "Rebuilding images without the cache..."
-	docker-compose build --no-cache
+build-backend:
+	@echo "Building backend..."
+	@$(COMPOSE) build backend
 
-check-frontend-built:
-	@if [ ! -d "frontend/dist" ]; then \
-		echo "Frontend not built yet, building now..."; \
-		$(MAKE) build-frontend; \
-	fi
+build-backend-nc:
+	@echo "Building backend without cache..."
+	@$(COMPOSE) build --no-cache backend
 
 #==============================================================================
 # LOG TARGETS
 #==============================================================================
 
-logs:
-	@echo "Showing all logs..."
-	docker-compose logs -f
-
-logs-backend:
-	@echo "Showing backend logs..."
-	docker-compose logs -f backend
-
-logs-frontend:
-	@echo "Showing frontend logs..."
-	docker-compose logs -f frontend
-
-logs-postgres:
-	@echo "Showing postgres logs..."
-	docker-compose logs -f postgres
-
-#==============================================================================
-# DATABASE TARGETS
-#==============================================================================
-
-backup-db:
-	@echo "Creating database backup..."
-	@if docker-compose ps | grep -q "dev_front.*Up"; then \
-		mkdir -p backups/front; \
-		set -a && . .env.dev_front && set +a && \
-		user=$$POSTGRES_USER && \
-		db=$$POSTGRES_DB && \
-		file="backups/front/front_backup_$$(date +%Y%m%d_%H%M%S).sql" && \
-		docker-compose exec -T postgres pg_dump -U $$user $$db > $$file && \
-		echo "[SUCCESS] Backup created: $$file"; \
-	elif docker-compose ps | grep -q "dev_back.*Up"; then \
-		mkdir -p backups/back; \
-		set -a && . .env.dev_back && set +a && \
-		user=$$POSTGRES_USER && \
-		db=$$POSTGRES_DB && \
-		file="backups/back/back_backup_$$(date +%Y%m%d_%H%M%S).sql" && \
-		docker-compose exec -T postgres pg_dump -U $$user $$db > $$file && \
-		echo "[SUCCESS] Backup created: $$file"; \
-	elif docker-compose ps | grep -q "prod.*Up"; then \
-		mkdir -p backups/prod; \
-		set -a && . .env.prod && set +a && \
-		user=$$POSTGRES_USER && \
-		db=$$POSTGRES_DB && \
-		file="backups/prod/prod_backup_$$(date +%Y%m%d_%H%M%S).sql" && \
-		docker-compose exec -T postgres pg_dump -U $$user $$db > $$file && \
-		echo "[SUCCESS] Backup created: $$file"; \
+all-logs:
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "Showing all logs..."; \
+		$(COMPOSE) logs -f; \
 	else \
-		echo "[ERROR] No containers running. Start containers first with 'make dev-front', 'make dev-back', or 'make prod'"; \
+		echo "ERROR: No containers running"; \
 		exit 1; \
 	fi
 
-restore-db:
-	@echo "Detecting running profile..."
-	@if docker-compose ps | grep -q "dev_front.*Up"; then \
-		echo "Available backups in backups/front:"; \
-		ls -1 backups/front/*.sql 2>/dev/null || (echo "No backups found" && exit 1); \
-		echo ""; \
-		read -p "Enter backup filename: " backup; \
-		if [ -f "$$backup" ]; then \
-			read -p "WARNING: This will OVERWRITE the current database. Continue? [y/N] " confirm; \
-			if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-				set -a && . .env.dev_front && set +a && \
-				docker-compose exec -T postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB < $$backup && \
-				echo "[SUCCESS] Database restored from $$backup"; \
-			else \
-				echo "[CANCELLED]"; \
-			fi; \
-		else \
-			echo "[ERROR] Backup file not found: $$backup"; \
-		fi; \
-	elif docker-compose ps | grep -q "dev_back.*Up"; then \
-		echo "Available backups in backups/back:"; \
-		ls -1 backups/back/*.sql 2>/dev/null || (echo "No backups found" && exit 1); \
-		echo ""; \
-		read -p "Enter backup filename: " backup; \
-		if [ -f "$$backup" ]; then \
-			read -p "WARNING: This will OVERWRITE the current database. Continue? [y/N] " confirm; \
-			if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-				set -a && . .env.dev_back && set +a && \
-				docker-compose exec -T postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB < $$backup && \
-				echo "[SUCCESS] Database restored from $$backup"; \
-			else \
-				echo "[CANCELLED]"; \
-			fi; \
-		else \
-			echo "[ERROR] Backup file not found: $$backup"; \
-		fi; \
-	elif docker-compose ps | grep -q "prod.*Up"; then \
-		echo "Available backups in backups/prod:"; \
-		ls -1 backups/prod/*.sql 2>/dev/null || (echo "No backups found" && exit 1); \
-		echo ""; \
-		read -p "Enter backup filename: " backup; \
-		if [ -f "$$backup" ]; then \
-			read -p "WARNING: This will OVERWRITE the current database. Continue? [y/N] " confirm; \
-			if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-				set -a && . .env.prod && set +a && \
-				docker-compose exec -T postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB < $$backup && \
-				echo "[SUCCESS] Database restored from $$backup"; \
-			else \
-				echo "[CANCELLED]"; \
-			fi; \
-		else \
-			echo "[ERROR] Backup file not found: $$backup"; \
-		fi; \
+frontend-logs:
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "Showing frontend logs..."; \
+		$(COMPOSE) logs -f frontend; \
 	else \
-		echo "[ERROR] No containers running. Start containers first with 'make dev-front', 'make dev-back', or 'make prod'"; \
+		echo "ERROR: No containers running"; \
+		exit 1; \
+	fi
+
+backend-logs:
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "Showing backend logs..."; \
+		$(COMPOSE) logs -f backend; \
+	else \
+		echo "ERROR: No containers running"; \
+		exit 1; \
+	fi
+
+postgres-logs:
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "Showing postgres logs..."; \
+		$(COMPOSE) logs -f postgres; \
+	else \
+		echo "ERROR: No containers running"; \
+		exit 1; \
+	fi
+
+minio-logs:
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "Showing minio logs..."; \
+		$(COMPOSE) logs -f minio; \
+	else \
+		echo "ERROR: No containers running"; \
 		exit 1; \
 	fi
 
@@ -230,67 +181,80 @@ restore-db:
 #==============================================================================
 
 ps:
-	@echo "========================================================"
-	@echo "  Container Status"
-	@echo "========================================================"
-	@echo ""
-	@docker-compose ps
-	@echo ""
-	@echo "========================================================"
-
-down:
-	@echo "Stopping all containers..."
-	@if docker-compose ps -q | grep -q .; then \
-		docker-compose --profile "*" down; \
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "================================================================="; \
+		echo "                     Container Status"; \
+		echo "================================================================="; \
+		echo ""; \
+		$(COMPOSE) ps; \
+		echo ""; \
+		echo "================================================================="; \
 	else \
-		echo "[ERROR] No containers running."; \
+		echo "ERROR: No containers running"; \
 		exit 1; \
 	fi
+
+down:
+	@if $(COMPOSE) ps -q | grep -q .; then \
+		echo "Stopping all containers..."; \
+		$(COMPOSE) --profile "*" down; \
+		rm .env; \
+	else \
+		echo "ERROR: No containers running"; \
+		rm .env > /dev/null; \
+		exit 1; \
+	fi
+
+restart-all:
+	@echo "Restarting all containers..."
+	@$(COMPOSE) --profile "*" restart
 
 restart-frontend:
 	@echo "Restarting frontend..."
-	docker-compose restart frontend
+	@$(COMPOSE) restart frontend
 
 restart-backend:
 	@echo "Restarting backend..."
-	docker-compose restart backend
+	@$(COMPOSE) restart backend
+
+restart-postgres:
+	@echo "Restarting postgres..."
+	@$(COMPOSE) restart postgres
+
+restart-minio:
+	@echo "Restarting minio..."
+	@$(COMPOSE) restart minio
 
 shell-backend:
 	@echo "Opening shell in backend container..."
-	docker-compose exec backend bash
+	@$(COMPOSE) exec backend bash
 
 shell-postgres:
-	@if docker-compose ps | grep -q "dev_front.*Up"; then \
-		echo "Opening psql in postgres container using dev_front environment..."; \
-		set -a && . .env.dev_front && set +a && \
-		docker-compose exec postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB; \
-	elif docker-compose ps | grep -q "dev_back.*Up"; then \
-		echo "Opening psql in postgres container using dev_back environment..."; \
-		set -a && . .env.dev_back && set +a && \
-		docker-compose exec postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB; \
-	elif docker-compose ps | grep -q "prod.*Up"; then \
-		echo "Opening psql in postgres container using prod environment..."; \
-		set -a && . .env.prod && set +a && \
-		docker-compose exec postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB; \
-	else \
-		echo "No containers running. Start the containers first"; \
-		exit 1; \
-	fi
+	@echo "Opening psql in postgres container..."
+	@set -a && . .env && set +a && \
+		$(COMPOSE) exec postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB
 
 clean:
-	@echo "Cleaning everything (including database)..."
-	@if docker-compose ps -q | grep -q .; then \
-		read -p "WARNING: Are you sure? This will DELETE ALL DATA! [y/N] " confirm; \
-		if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-			docker-compose --profile "*" down -v; \
-			echo "[SUCCESS] Cleaned!"; \
-		else \
-			echo "[CANCELLED]"; \
-			echo ""; \
-			echo "Containers are still running."; \
-			echo "If you want to stop the containers, run: make down"; \
-		fi \
+	@echo "WARNING: This will DELETE ALL DATA including the database!"
+	@echo -n "Are you sure you want to continue? [y/N] " && read confirm && \
+	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
+		echo "Cleaning everything..."; \
+		$(COMPOSE) --profile "*" down -v; \
+		rm .env; \
+		echo "SUCCESS: Cleaned!"; \
 	else \
-		echo "[ERROR] No containers running."; \
-		exit 1; \
+		echo "CANCELLED: No changes made"; \
 	fi
+
+nuke:
+	@echo "🔥 Nuking everything..."
+	@docker-compose down -v 2>/dev/null || true
+	@docker stop $$(docker ps -aq) 2>/dev/null || true
+	@docker rm $$(docker ps -aq) 2>/dev/null || true
+	@docker rmi $$(docker images -q) --force 2>/dev/null || true
+	@docker volume rm $$(docker volume ls -q) 2>/dev/null || true
+	@docker network prune -f 2>/dev/null || true
+	@docker builder prune -a -f 2>/dev/null || true
+	@docker buildx prune -a -f 2>/dev/null || true
+	@docker system prune -a --volumes -f 2>/dev/null || true
+	@echo "✅ Everything nuked!"
