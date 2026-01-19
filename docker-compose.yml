@@ -17,7 +17,7 @@ services:
       - postgres
       - back-dev
       - front-dev
-      - productioni
+      - production
 
   minio:
     image: minio/minio:latest
