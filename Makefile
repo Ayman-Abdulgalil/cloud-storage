@@ -1,8 +1,8 @@
-.PHONY: help dev-front dev-front-bg dev-back dev-back-bg production production-bg \
-        build-frontend build-frontend-nc build-backend build-backend-nc \
-        all-logs frontend-logs backend-logs postgres-logs minio-logs \
-        ps down restart-all restart-frontend restart-backend restart-postgres restart-minio \
-        shell-backend shell-postgres clean
+.PHONY: help front-dev front-dev-bg back-dev back-dev-bg production production-bg \
+        build-vite build-vite-nc build-fastapi build-fastapi-nc \
+        all-logs vite-logs fastapi-logs postgres-logs minio-logs \
+        ps down restart-all restart-vite restart-fastapi restart-postgres restart-minio \
+        shell-fastapi shell-postgres clean
 
 # Default target
 .DEFAULT_GOAL := help
@@ -38,10 +38,10 @@ help:
 	@echo "  make production-bg     - Production mode (background)"
 	@echo ""
 	@echo "Building:"
-	@echo "  make build-frontend    - Build frontend with cache"
-	@echo "  make build-frontend-nc - Build frontend without cache"
-	@echo "  make build-backend     - Build backend with cache"
-	@echo "  make build-backend-nc  - Build backend without cache"
+	@echo "  make build-vite        - Build vite with cache"
+	@echo "  make build-vite-nc     - Build vite without cache"
+	@echo "  make build-fastapi     - Build fastapi with cache"
+	@echo "  make build-fastapi-nc  - Build fastapi without cache"
 	@echo ""
 	@echo "Logs:"
 	@echo "  make all-logs          - View all logs"
@@ -82,13 +82,11 @@ front-dev-bg:
 back-dev: check-frontend-built
 	@echo "Starting backend development mode..."
 	@ln -sf $(ENV_DEV_BACK) .env
-	@$(MAKE) build-frontend
 	@$(COMPOSE) --profile back-dev up
 
 back-dev-bg: check-frontend-built
 	@echo "Starting backend development mode (background)..."
 	@ln -sf $(ENV_DEV_BACK) .env && test -L .env
-	@$(MAKE) build-frontend
 	@$(COMPOSE) --profile back-dev up -d
 	@echo "Containers started. Use 'make all-logs' to view logs"
 
@@ -111,26 +109,26 @@ production-bg: check-frontend-built
 # BUILD TARGETS
 #==============================================================================
 
-build-frontend:
-	@echo "Building frontend..."
+build-vite:
+	@echo "Building vite..."
 	@$(COMPOSE) build vite
 
-build-frontend-nc:
-	@echo "Building frontend without cache..."
+build-vite-nc:
+	@echo "Building vite without cache..."
 	@$(COMPOSE) build --no-cache vite
 
-build-backend:
+build-fastapi:
 	@echo "Building backend..."
-	@$(COMPOSE) build backend
+	@$(COMPOSE) build fastapi
 
-build-backend-nc:
+build-fastapi-nc:
 	@echo "Building backend without cache..."
-	@$(COMPOSE) build --no-cache backend
+	@$(COMPOSE) build --no-cache fastapi
 
 check-frontend-built:
 	@if [ ! -d "frontend/dist" ]; then \
 		echo "Frontend not built yet, building now..."; \
-		$(MAKE) build-frontend; \
+		$(MAKE) build-vite; \
 	fi
 
 #==============================================================================
@@ -263,4 +261,5 @@ nuke:
 	@docker builder prune -a -f 2>/dev/null || true
 	@docker buildx prune -a -f 2>/dev/null || true
 	@docker system prune -a --volumes -f 2>/dev/null || true
+	@rm .env > /dev/null
 	@echo "✅ Everything nuked!"

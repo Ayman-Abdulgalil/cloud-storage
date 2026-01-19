@@ -7,11 +7,13 @@ from minio import Minio
 
 @dataclass(frozen=True)
 class MinioSettings:
-    endpoint: str = os.environ.get("MINIO_ENDPOINT", "minio_storage:9000")
-    access_key: str = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
-    secret_key: str = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
+    access_key: str = os.environ.get("MINIO_ROOT_USER", "minioadmin")
+    secret_key: str = os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin")
     bucket: str = os.environ.get("MINIO_BUCKET", "drive-objects")
     secure: bool = os.environ.get("MINIO_SECURE", "false").lower == "true"
+    port: str = os.environ.get("MINIO_API_PORT", "9000")
+    host: str = os.environ.get("MINIO_HOST", "minio")
+    endpoint = f"{host}:{port}"
 
 
 settings = MinioSettings()
