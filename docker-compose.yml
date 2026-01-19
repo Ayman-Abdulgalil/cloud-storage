@@ -41,7 +41,7 @@ services:
       - front-dev
       - production
 
-  backend:
+  fastapi:
     build:
       context: .
       dockerfile: Dockerfile
@@ -54,7 +54,7 @@ services:
       - .env
     volumes:
       - ./backend:/app
-      - ./frontend/dist:/app/frontend/dist:ro
+      - ./frontend/dist:/frontend/dist:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +66,7 @@ services:
       - front-dev
       - production
 
-  frontend:
+  vite:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev

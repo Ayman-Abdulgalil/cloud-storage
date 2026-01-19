@@ -45,8 +45,8 @@ help:
 	@echo ""
 	@echo "Logs:"
 	@echo "  make all-logs          - View all logs"
-	@echo "  make frontend-logs     - View frontend logs"
-	@echo "  make backend-logs      - View backend logs"
+	@echo "  make vite-logs         - View vite logs"
+	@echo "  make fastapi-logs      - View fastapi logs"
 	@echo "  make postgres-logs     - View postgres logs"
 	@echo "  make minio-logs        - View minio logs"
 	@echo ""
@@ -54,11 +54,11 @@ help:
 	@echo "  make ps                - Show container status"
 	@echo "  make down              - Stop all containers"
 	@echo "  make restart-all       - Restart all containers"
-	@echo "  make restart-frontend  - Restart frontend container"
-	@echo "  make restart-backend   - Restart backend container"
+	@echo "  make restart-vite      - Restart vite container"
+	@echo "  make restart-fastapi   - Restart fastapi container"
 	@echo "  make restart-postgres  - Restart postgres container"
 	@echo "  make restart-minio     - Restart minio container"
-	@echo "  make shell-backend     - Open bash in backend container"
+	@echo "  make shell-fastapi     - Open bash in fastapi container"
 	@echo "  make shell-postgres    - Open psql in postgres container"
 	@echo "  make clean             - Stop & remove volumes (deletes data!)"
 	@echo ""
@@ -79,13 +79,13 @@ front-dev-bg:
 	@$(COMPOSE) --profile front-dev up -d
 	@echo "Containers started. Use 'make all-logs' to view logs"
 
-back-dev:
+back-dev: check-frontend-built
 	@echo "Starting backend development mode..."
 	@ln -sf $(ENV_DEV_BACK) .env
 	@$(MAKE) build-frontend
 	@$(COMPOSE) --profile back-dev up
 
-back-dev-bg:
+back-dev-bg: check-frontend-built
 	@echo "Starting backend development mode (background)..."
 	@ln -sf $(ENV_DEV_BACK) .env && test -L .env
 	@$(MAKE) build-frontend
@@ -96,15 +96,15 @@ back-dev-bg:
 # PRODUCTION TARGETS
 #==============================================================================
 
-production: build-frontend
+production:  check-frontend-built
 	@echo "Starting production mode..."
 	@ln -sf $(ENV_PRODUCTION) .env && \
-		$(COMPOSE) --profile prod up
+		$(COMPOSE) --profile production up
 
-production-bg: build-frontend
+production-bg: check-frontend-built
 	@echo "Starting production mode (background)..."
 	@ln -sf $(ENV_PRODUCTION) .env && \
-		$(COMPOSE) --profile prod up -d
+		$(COMPOSE) --profile production up -d
 	@echo "Containers started. Use 'make all-logs' to view logs"
 
 #==============================================================================
@@ -113,11 +113,11 @@ production-bg: build-frontend
 
 build-frontend:
 	@echo "Building frontend..."
-	@$(COMPOSE) build frontend
+	@$(COMPOSE) build vite
 
 build-frontend-nc:
 	@echo "Building frontend without cache..."
-	@$(COMPOSE) build --no-cache frontend
+	@$(COMPOSE) build --no-cache vite
 
 build-backend:
 	@echo "Building backend..."
@@ -126,6 +126,12 @@ build-backend:
 build-backend-nc:
 	@echo "Building backend without cache..."
 	@$(COMPOSE) build --no-cache backend
+
+check-frontend-built:
+	@if [ ! -d "frontend/dist" ]; then \
+		echo "Frontend not built yet, building now..."; \
+		$(MAKE) build-frontend; \
+	fi
 
 #==============================================================================
 # LOG TARGETS
@@ -140,19 +146,19 @@ all-logs:
 		exit 1; \
 	fi
 
-frontend-logs:
+vite-logs:
 	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing frontend logs..."; \
-		$(COMPOSE) logs -f frontend; \
+		echo "Showing vite logs..."; \
+		$(COMPOSE) logs -f vite; \
 	else \
 		echo "ERROR: No containers running"; \
 		exit 1; \
 	fi
 
-backend-logs:
+fastapi-logs:
 	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing backend logs..."; \
-		$(COMPOSE) logs -f backend; \
+		echo "Showing fastapi logs..."; \
+		$(COMPOSE) logs -f fastapi; \
 	else \
 		echo "ERROR: No containers running"; \
 		exit 1; \
@@ -209,13 +215,13 @@ restart-all:
 	@echo "Restarting all containers..."
 	@$(COMPOSE) --profile "*" restart
 
-restart-frontend:
-	@echo "Restarting frontend..."
-	@$(COMPOSE) restart frontend
+restart-vite:
+	@echo "Restarting vite..."
+	@$(COMPOSE) restart vite
 
-restart-backend:
-	@echo "Restarting backend..."
-	@$(COMPOSE) restart backend
+restart-fastapi:
+	@echo "Restarting fastapi..."
+	@$(COMPOSE) restart fastapi
 
 restart-postgres:
 	@echo "Restarting postgres..."
@@ -225,9 +231,9 @@ restart-minio:
 	@echo "Restarting minio..."
 	@$(COMPOSE) restart minio
 
-shell-backend:
-	@echo "Opening shell in backend container..."
-	@$(COMPOSE) exec backend bash
+shell-fastapi:
+	@echo "Opening shell in fastapi container..."
+	@$(COMPOSE) exec fastapi bash
 
 shell-postgres:
 	@echo "Opening psql in postgres container..."
