@@ -1,8 +1,11 @@
 import { Box, Card, TextField, Button, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 
 
 function Login() {
+    const navigate = useNavigate();
+
     return (
         <Card 
         sx={{
@@ -23,7 +26,12 @@ function Login() {
                 Secure Drive
             </Typography>
         </Box>
+        <Box display="flex" alignItems="center" flexDirection="column" mb={2}>
 
+            <Typography variant="h3" fontWeight={700} lineHeight={1.1} sx={{ whiteSpace: "nowrap", fontSize: "1.3rem" }}>
+                Login
+            </Typography>
+        </Box>
 
         {/* Email */}
         <Box mb={2} textAlign="left">
@@ -58,6 +66,13 @@ function Login() {
             py: 1, mb: 2}}>
                 Login
         </Button>
+        <Typography variant="body2">
+                Don't have an account?{" "}
+            <span style={{ color: "#4F46E5", cursor: "pointer" }} onClick={() => navigate("/signup")}>
+                Sign up
+            </span>
+        </Typography>
+        {/* Signup link */}
         </Card>
     );
 }
