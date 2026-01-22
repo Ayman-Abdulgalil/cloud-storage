@@ -83,13 +83,16 @@ async def upload_object(
     if folder:
         folder_path = sanitize_filename(folder.strip("/"))
 
+    current_name = sanitize_filename(logical_name or file.filename or "unnamed")
+
     # Store metadata in database
     row = ObjectMeta(
         object_id=object_uuid,
         user_id=TEST_USER_ID,
         bucket=settings.bucket,
         object_key=object_key,
-        original_name=sanitize_filename(logical_name or file.filename or "unnamed"),
+        original_name=current_name,
+        current_name=current_name,
         folder=folder_path,
         content_type=file.content_type,
         size_bytes=size,
@@ -104,7 +107,8 @@ async def upload_object(
         "object_id": str(row.object_id),
         "user_id": row.user_id,
         "object_key": row.object_key,
-        "name": row.original_name,
+        "name": row.current_name,
+        "original_name": row.original_name,
         "folder": row.folder,
         "content_type": row.content_type,
         "size_bytes": row.size_bytes,
@@ -118,7 +122,7 @@ async def list_objects(
     folder: Optional[str] = Query(None, description="Filter by folder path"),
     search: Optional[str] = Query(None, description="Search by filename"),
     sort_by: str = Query(
-        "created_at", description="Sort field: name, size_bytes, created_at"
+        "created_at", description="Sort field: current_name, size_bytes, created_at"
     ),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     limit: int = Query(100, le=1000, description="Max results"),
@@ -130,7 +134,7 @@ async def list_objects(
 
     - **folder**: Filter by folder (null = root, "documents" = documents folder)
     - **search**: Search filenames (case-insensitive partial match)
-    - **sort_by**: Sort by name, size_bytes, or created_at
+    - **sort_by**: Sort by current_name, size_bytes, or created_at
     - **sort_order**: asc (ascending) or desc (descending)
     - **limit**: Max number of results (default 100, max 1000)
     - **offset**: Pagination offset
@@ -147,9 +151,9 @@ async def list_objects(
             # Specific folder
             query = query.filter(ObjectMeta.folder == sanitize_filename(folder))
 
-    # Search by filename
+    # Search by filename (search in current_name)
     if search:
-        query = query.filter(ObjectMeta.original_name.ilike(f"%{search}%"))
+        query = query.filter(ObjectMeta.current_name.ilike(f"%{search}%"))
 
     # Sorting
     sort_field = getattr(ObjectMeta, sort_by, ObjectMeta.created_at)
@@ -168,7 +172,8 @@ async def list_objects(
     items = [
         {
             "object_id": str(obj.object_id),
-            "name": obj.original_name,
+            "name": obj.current_name,
+            "original_name": obj.original_name,
             "folder": obj.folder,
             "content_type": obj.content_type,
             "size_bytes": obj.size_bytes,
@@ -295,8 +300,8 @@ def download_object(
             obj.close()
             obj.release_conn()
 
-    # Sanitize filename for Content-Disposition header
-    safe_filename = sanitize_filename(str(row.original_name))
+    # Use current_name for download
+    safe_filename = sanitize_filename(str(row.current_name))
 
     headers = {
         "Content-Disposition": f'attachment; filename="{safe_filename}"',
@@ -354,6 +359,9 @@ async def update_object_metadata(
 ):
     """
     Update file metadata (rename or move to different folder).
+
+    - **name**: New filename (updates current_name, not original_name)
+    - **folder**: New folder path (empty string for root)
     """
     try:
         object_uuid = uuid.UUID(object_id)
@@ -366,7 +374,7 @@ async def update_object_metadata(
 
     # Update fields
     if name is not None:
-        row.original_name = sanitize_filename(name)  # type: ignore
+        row.current_name = sanitize_filename(name)  # type: ignore
 
     if folder is not None:
         if folder.strip() == "":
@@ -379,7 +387,8 @@ async def update_object_metadata(
 
     return {
         "object_id": str(row.object_id),
-        "name": row.original_name,
+        "name": row.current_name,
+        "original_name": row.original_name,
         "folder": row.folder,
         "updated": True,
     }

@@ -5,13 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .db import engine
-from .models import Base
 from .api.objects import objects_router
 
 app = FastAPI(title="Secure Drive")
-
-Base.metadata.create_all(bind=engine)
 
 app.include_router(objects_router, prefix="/api")
 

@@ -236,7 +236,7 @@ shell-fastapi:
 shell-postgres:
 	@echo "Opening psql in postgres container..."
 	@set -a && . .env && set +a && \
-		$(COMPOSE) exec postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB
+		$(COMPOSE) exec postgres psql -U $$APP_USER -d $$POSTGRES_DB
 
 clean:
 	@echo "WARNING: This will DELETE ALL DATA including the database!"
