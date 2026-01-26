@@ -58,12 +58,13 @@ function Login() {
         </Typography>
 
         {/* Login button */}
-        <Button fullWidth variant="contained" sx={{
-            backgroundColor: "#4F46E5", 
-            borderRadius: 2, 
-            textTransform: "none", 
-            fontWeight: 500, 
-            py: 1, mb: 2}}>
+        <Button fullWidth variant="contained" onClick={() => navigate("/dashboard")}
+            sx={{
+                backgroundColor: "#4F46E5", 
+                borderRadius: 2, 
+                textTransform: "none", 
+                fontWeight: 500, 
+                py: 1, mb: 2}}>
                 Login
         </Button>
         <Typography variant="body2">
