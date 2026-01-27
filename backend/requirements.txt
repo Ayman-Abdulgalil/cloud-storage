@@ -1,7 +1,12 @@
 sqlalchemy
-minio
-fastapi
-uvicorn[standard]
 psycopg
 psycopg_binary
+
+minio
+
+fastapi
+pyjwt
+passlib[bcrypt]
+pydantic[email]
 python-multipart
+uvicorn[standard]

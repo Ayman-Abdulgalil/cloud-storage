@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from ..db import get_db
 from ..models import ObjectMeta
-from ..storage.minio_client import (
+from ..minio_client import (
     put_bytes,
     get_object_stream,
     make_object_key,
@@ -97,7 +97,6 @@ async def upload_object(
         content_type=file.content_type,
         size_bytes=size,
         sha256_hex=h.hexdigest(),
-        created_at=datetime.now(timezone.utc),
     )
     db.add(row)
     db.commit()
@@ -290,7 +289,7 @@ def download_object(
         raise HTTPException(status_code=404, detail="Object not found")
 
     # Get object stream from MinIO
-    obj = get_object_stream(str(row.object_key))
+    obj = get_object_stream(row.object_key) # type: ignore
 
     def iterator():
         try:
@@ -301,7 +300,7 @@ def download_object(
             obj.release_conn()
 
     # Use current_name for download
-    safe_filename = sanitize_filename(str(row.current_name))
+    safe_filename = sanitize_filename(row.current_name) # type: ignore
 
     headers = {
         "Content-Disposition": f'attachment; filename="{safe_filename}"',
@@ -310,7 +309,7 @@ def download_object(
 
     return StreamingResponse(
         iterator(),
-        media_type=str(row.content_type) or "application/octet-stream",
+        media_type=row.content_type or "application/octet-stream", # type: ignore
         headers=headers,
     )
 
@@ -392,3 +391,4 @@ async def update_object_metadata(
         "folder": row.folder,
         "updated": True,
     }
+

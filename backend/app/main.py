@@ -6,10 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api.objects import objects_router
+from .auth import auth_router
 
 app = FastAPI(title="Secure Drive")
 
 app.include_router(objects_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 if os.environ.get("SERVE_FRONTEND", "0") == "1":
     dist_dir = os.environ.get("FRONTEND_DIST", "")
