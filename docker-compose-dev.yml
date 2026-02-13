@@ -3,56 +3,43 @@ services:
     image: postgres:15-alpine
     container_name: postgres_db
     env_file:
-      - .env
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - .env.dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 5
-    profiles:
-      - postgres
-      - back-dev
-      - front-dev
-      - production
 
   minio:
     image: minio/minio:latest
     container_name: minio_storage
     command: server /data --console-address ":9001"
     ports:
-      - "${MINIO_API_PORT:-9000}:9000" # S3 API
-      - "${MINIO_CONSOLE_PORT:-9001}:9001" # Web Console
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     env_file:
-      - .env
+      - .env.dev
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    profiles:
-      - minio
-      - back-dev
-      - front-dev
-      - production
 
   fastapi:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-      target: ${BUILD_TARGET:-development}
+      target: development
     container_name: fastapi_app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     env_file:
-      - .env
+      - .env.dev
     volumes:
       - ./backend:/app
       - ./frontend/dist:/frontend/dist:ro
@@ -62,15 +49,11 @@ services:
       minio:
         condition: service_healthy
     restart: unless-stopped
-    profiles:
-      - back-dev
-      - front-dev
-      - production
 
   vite:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: vite_dev
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
@@ -78,12 +61,10 @@ services:
       - ./frontend:/app
       - /app/node_modules
     env_file:
-      - .env
+      - .env.dev
     environment:
       - VITE_API_URL=http://localhost:${BACKEND_PORT:-8000}
     command: npm run dev -- --host 0.0.0.0
-    profiles:
-      - front-dev
 
 volumes:
   postgres_data:

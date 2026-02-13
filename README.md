@@ -1,10 +1,10 @@
 <center>
-   <img src="./secure_drive_logo.svg" width="280" alt="Secure Drive Logo" />
+   <img src="./frontend/public/secure_drive.svg" width="280" alt="Secure Drive Logo" />
 </center>
 
 # Secure Drive
 
-Security-focused cloud storage solution (semester project).  
+Security-focused cloud storage solution (semester project).
 Currently in a very early **design** phase.
 
 ## Overview

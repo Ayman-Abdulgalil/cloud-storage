@@ -13,11 +13,8 @@ build/
 
 # Environment variables
 .env
-.env.local
-.env.*.local
-.env.production
-.env.front_dev
-.env.back_dev
+.env.prod
+.env.dev
 
 # Database
 *.db

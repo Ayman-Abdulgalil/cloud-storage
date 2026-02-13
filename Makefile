@@ -1,8 +1,8 @@
-.PHONY: help front-dev front-dev-bg back-dev back-dev-bg production production-bg \
-        build-vite build-vite-nc build-fastapi build-fastapi-nc \
-        all-logs vite-logs fastapi-logs postgres-logs minio-logs \
-        ps down restart-all restart-vite restart-fastapi restart-postgres restart-minio \
-        shell-fastapi shell-postgres clean
+.PHONY: help dev dev-bg prod prod-bg \
+        build build-nc build-vite build-vite-nc build-fastapi build-fastapi-nc \
+        logs vite-logs fastapi-logs postgres-logs minio-logs \
+        ps down restart restart-vite restart-fastapi restart-postgres restart-minio \
+        shell-fastapi shell-postgres clean nuke
 
 # Default target
 .DEFAULT_GOAL := help
@@ -11,10 +11,32 @@
 # VARIABLES
 #==============================================================================
 
-COMPOSE := docker-compose
-ENV_DEV_FRONT := .env.front_dev
-ENV_DEV_BACK := .env.back_dev
-ENV_PRODUCTION := .env.production
+# MODE can be set via: make dev MODE=prod
+MODE ?= dev
+
+# Compose file and env file selection based on MODE
+ifeq ($(MODE),prod)
+    COMPOSE_FILE := docker-compose-prod.yml
+    ENV_FILE := .env.prod
+else
+    COMPOSE_FILE := docker-compose-dev.yml
+    ENV_FILE := .env.dev
+endif
+
+# Docker compose command with selected file and env file
+DC := docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE)
+
+#==============================================================================
+# HELPER FUNCTION
+#==============================================================================
+
+# Check if containers are running
+define check_running
+	@if ! $(DC) ps -q | grep -q .; then \
+		echo "ERROR: No containers running in $(MODE) mode"; \
+		exit 1; \
+	fi
+endef
 
 #==============================================================================
 # HELP
@@ -27,24 +49,22 @@ help:
 	@echo ""
 	@echo "  make  |  make help     - Show this help message"
 	@echo ""
-	@echo "Development:"
-	@echo "  make front-dev         - Frontend dev mode (Vite hot reload)"
-	@echo "  make front-dev-bg      - Frontend dev mode (background)"
-	@echo "  make back-dev          - Backend dev mode (FastAPI hot reload)"
-	@echo "  make back-dev-bg       - Backend dev mode (background)"
-	@echo ""
-	@echo "Production:"
-	@echo "  make production        - Production mode (static frontend)"
-	@echo "  make production-bg     - Production mode (background)"
+	@echo "Starting:"
+	@echo "  make dev               - Start in dev mode (foreground)"
+	@echo "  make dev-bg            - Start in dev mode (background)"
+	@echo "  make prod              - Start in prod mode (foreground)"
+	@echo "  make prod-bg           - Start in prod mode (background)"
 	@echo ""
 	@echo "Building:"
+	@echo "  make build             - Build all services"
+	@echo "  make build-nc          - Build all services without cache"
 	@echo "  make build-vite        - Build vite with cache"
 	@echo "  make build-vite-nc     - Build vite without cache"
 	@echo "  make build-fastapi     - Build fastapi with cache"
 	@echo "  make build-fastapi-nc  - Build fastapi without cache"
 	@echo ""
 	@echo "Logs:"
-	@echo "  make all-logs          - View all logs"
+	@echo "  make logs              - View all logs"
 	@echo "  make vite-logs         - View vite logs"
 	@echo "  make fastapi-logs      - View fastapi logs"
 	@echo "  make postgres-logs     - View postgres logs"
@@ -53,7 +73,7 @@ help:
 	@echo "Operations:"
 	@echo "  make ps                - Show container status"
 	@echo "  make down              - Stop all containers"
-	@echo "  make restart-all       - Restart all containers"
+	@echo "  make restart           - Restart all containers"
 	@echo "  make restart-vite      - Restart vite container"
 	@echo "  make restart-fastapi   - Restart fastapi container"
 	@echo "  make restart-postgres  - Restart postgres container"
@@ -61,190 +81,158 @@ help:
 	@echo "  make shell-fastapi     - Open bash in fastapi container"
 	@echo "  make shell-postgres    - Open psql in postgres container"
 	@echo "  make clean             - Stop & remove volumes (deletes data!)"
+	@echo "  make nuke              - Nuclear option: remove everything"
+	@echo ""
+	@echo "Mode Selection:"
+	@echo "  All commands use dev mode by default"
+	@echo "  Add MODE=prod to use production mode, e.g.:"
+	@echo "    make logs MODE=prod"
+	@echo "    make down MODE=prod"
+	@echo "    make build MODE=prod"
 	@echo ""
 	@echo "=========================================================="
 
 #==============================================================================
-# DEVELOPMENT TARGETS
+# START TARGETS
 #==============================================================================
 
-front-dev:
-	@echo "Starting frontend development mode..."
-	@ln -sf $(ENV_DEV_FRONT) .env && test -L .env
-	@$(COMPOSE) --profile front-dev up
+dev:
+	@echo "Starting in development mode..."
+	@$(DC) up
 
-front-dev-bg:
-	@echo "Starting frontend development mode (background)..."
-	@ln -sf $(ENV_DEV_FRONT) .env && test -L .env
-	@$(COMPOSE) --profile front-dev up -d
-	@echo "Containers started. Use 'make all-logs' to view logs"
+dev-bg:
+	@echo "Starting in development mode (background)..."
+	@$(DC) up -d
+	@echo "Containers started. Use 'make logs' to view logs"
 
-back-dev: check-frontend-built
-	@echo "Starting backend development mode..."
-	@ln -sf $(ENV_DEV_BACK) .env
-	@$(COMPOSE) --profile back-dev up
+prod:
+	@$(MAKE) dev MODE=prod
 
-back-dev-bg: check-frontend-built
-	@echo "Starting backend development mode (background)..."
-	@ln -sf $(ENV_DEV_BACK) .env && test -L .env
-	@$(COMPOSE) --profile back-dev up -d
-	@echo "Containers started. Use 'make all-logs' to view logs"
-
-#==============================================================================
-# PRODUCTION TARGETS
-#==============================================================================
-
-production:  check-frontend-built
-	@echo "Starting production mode..."
-	@ln -sf $(ENV_PRODUCTION) .env && \
-		$(COMPOSE) --profile production up
-
-production-bg: check-frontend-built
-	@echo "Starting production mode (background)..."
-	@ln -sf $(ENV_PRODUCTION) .env && \
-		$(COMPOSE) --profile production up -d
-	@echo "Containers started. Use 'make all-logs' to view logs"
+prod-bg:
+	@$(MAKE) dev-bg MODE=prod
 
 #==============================================================================
 # BUILD TARGETS
 #==============================================================================
 
+build:
+	@echo "Building all services in $(MODE) mode..."
+	@$(DC) build
+
+build-nc:
+	@echo "Building all services without cache in $(MODE) mode..."
+	@$(DC) build --no-cache
+
 build-vite:
-	@echo "Building vite..."
-	@$(COMPOSE) build vite
+	@echo "Building vite in $(MODE) mode..."
+	@$(DC) build vite
 
 build-vite-nc:
-	@echo "Building vite without cache..."
-	@$(COMPOSE) build --no-cache vite
+	@echo "Building vite without cache in $(MODE) mode..."
+	@$(DC) build --no-cache vite
 
 build-fastapi:
-	@echo "Building backend..."
-	@$(COMPOSE) build fastapi
+	@echo "Building fastapi in $(MODE) mode..."
+	@$(DC) build fastapi
 
 build-fastapi-nc:
-	@echo "Building backend without cache..."
-	@$(COMPOSE) build --no-cache fastapi
-
-check-frontend-built:
-	@if [ ! -d "frontend/dist" ]; then \
-		echo "Frontend not built yet, building now..."; \
-		$(MAKE) build-vite; \
-	fi
+	@echo "Building fastapi without cache in $(MODE) mode..."
+	@$(DC) build --no-cache fastapi
 
 #==============================================================================
 # LOG TARGETS
 #==============================================================================
 
-all-logs:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing all logs..."; \
-		$(COMPOSE) logs -f; \
-	else \
-		echo "ERROR: No containers running"; \
-		exit 1; \
-	fi
+logs:
+	$(call check_running)
+	@echo "Showing all logs in $(MODE) mode..."
+	@$(DC) logs -f
 
 vite-logs:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing vite logs..."; \
-		$(COMPOSE) logs -f vite; \
-	else \
-		echo "ERROR: No containers running"; \
-		exit 1; \
-	fi
+	$(call check_running)
+	@echo "Showing vite logs in $(MODE) mode..."
+	@$(DC) logs -f vite
 
 fastapi-logs:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing fastapi logs..."; \
-		$(COMPOSE) logs -f fastapi; \
-	else \
-		echo "ERROR: No containers running"; \
-		exit 1; \
-	fi
+	$(call check_running)
+	@echo "Showing fastapi logs in $(MODE) mode..."
+	@$(DC) logs -f fastapi
 
 postgres-logs:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing postgres logs..."; \
-		$(COMPOSE) logs -f postgres; \
-	else \
-		echo "ERROR: No containers running"; \
-		exit 1; \
-	fi
+	$(call check_running)
+	@echo "Showing postgres logs in $(MODE) mode..."
+	@$(DC) logs -f postgres
 
 minio-logs:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Showing minio logs..."; \
-		$(COMPOSE) logs -f minio; \
-	else \
-		echo "ERROR: No containers running"; \
-		exit 1; \
-	fi
+	$(call check_running)
+	@echo "Showing minio logs in $(MODE) mode..."
+	@$(DC) logs -f minio
 
 #==============================================================================
-# OPERATING TARGETS
+# OPERATION TARGETS
 #==============================================================================
 
 ps:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "================================================================="; \
-		echo "                     Container Status"; \
-		echo "================================================================="; \
-		echo ""; \
-		$(COMPOSE) ps; \
-		echo ""; \
-		echo "================================================================="; \
-	else \
-		echo "ERROR: No containers running"; \
-		exit 1; \
-	fi
+	$(call check_running)
+	@echo "================================================================="
+	@echo "              Container Status ($(MODE) mode)"
+	@echo "================================================================="
+	@echo ""
+	@$(DC) ps
+	@echo ""
+	@echo "================================================================="
 
 down:
-	@if $(COMPOSE) ps -q | grep -q .; then \
-		echo "Stopping all containers..."; \
-		$(COMPOSE) --profile "*" down; \
-		rm .env; \
-	else \
-		echo "ERROR: No containers running"; \
-		rm .env > /dev/null; \
-		exit 1; \
-	fi
+	@echo "Stopping all containers in $(MODE) mode..."
+	@$(DC) down
+	@echo "Containers stopped"
 
-restart-all:
-	@echo "Restarting all containers..."
-	@$(COMPOSE) --profile "*" restart
+restart:
+	$(call check_running)
+	@echo "Restarting all containers in $(MODE) mode..."
+	@$(DC) restart
 
 restart-vite:
-	@echo "Restarting vite..."
-	@$(COMPOSE) restart vite
+	$(call check_running)
+	@echo "Restarting vite in $(MODE) mode..."
+	@$(DC) restart vite
 
 restart-fastapi:
-	@echo "Restarting fastapi..."
-	@$(COMPOSE) restart fastapi
+	$(call check_running)
+	@echo "Restarting fastapi in $(MODE) mode..."
+	@$(DC) restart fastapi
 
 restart-postgres:
-	@echo "Restarting postgres..."
-	@$(COMPOSE) restart postgres
+	$(call check_running)
+	@echo "Restarting postgres in $(MODE) mode..."
+	@$(DC) restart postgres
 
 restart-minio:
-	@echo "Restarting minio..."
-	@$(COMPOSE) restart minio
+	$(call check_running)
+	@echo "Restarting minio in $(MODE) mode..."
+	@$(DC) restart minio
 
 shell-fastapi:
+	$(call check_running)
 	@echo "Opening shell in fastapi container..."
-	@$(COMPOSE) exec fastapi bash
+	@$(DC) exec fastapi bash
 
 shell-postgres:
+	$(call check_running)
 	@echo "Opening psql in postgres container..."
-	@set -a && . .env && set +a && \
-		$(COMPOSE) exec postgres psql -U $$APP_USER -d $$POSTGRES_DB
+	@set -a && . $(ENV_FILE) && set +a && \
+		$(DC) exec postgres psql -U $$POSTGRES_USER -d $$POSTGRES_DB
+
+#==============================================================================
+# CLEANUP TARGETS
+#==============================================================================
 
 clean:
 	@echo "WARNING: This will DELETE ALL DATA including the database!"
 	@echo -n "Are you sure you want to continue? [y/N] " && read confirm && \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-		echo "Cleaning everything..."; \
-		$(COMPOSE) --profile "*" down -v; \
-		rm .env; \
+		echo "Cleaning everything in $(MODE) mode..."; \
+		$(DC) down -v; \
 		echo "SUCCESS: Cleaned!"; \
 	else \
 		echo "CANCELLED: No changes made"; \
@@ -252,7 +240,7 @@ clean:
 
 nuke:
 	@echo "🔥 Nuking everything..."
-	@docker-compose down -v 2>/dev/null || true
+	@docker compose down -v 2>/dev/null || true
 	@docker stop $$(docker ps -aq) 2>/dev/null || true
 	@docker rm $$(docker ps -aq) 2>/dev/null || true
 	@docker rmi $$(docker images -q) --force 2>/dev/null || true
@@ -261,5 +249,4 @@ nuke:
 	@docker builder prune -a -f 2>/dev/null || true
 	@docker buildx prune -a -f 2>/dev/null || true
 	@docker system prune -a --volumes -f 2>/dev/null || true
-	@rm .env > /dev/null
 	@echo "✅ Everything nuked!"
