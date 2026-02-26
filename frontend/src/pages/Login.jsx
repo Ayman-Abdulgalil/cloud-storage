@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Box, Card, TextField, Button, Typography, Alert } from "@mui/material";
+import { Box, Card, TextField, Button, Typography, Alert, InputAdornment, IconButton } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 
@@ -11,6 +12,7 @@ function Login() {
     });
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (e) => {
         setFormData({
@@ -123,12 +125,25 @@ function Login() {
                 <TextField 
                     fullWidth 
                     size="small" 
-                    type="password" 
+                    type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
                     onKeyPress={handleKeyPress}
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    edge="end"
+                                    size="small"
+                                >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                            </InputAdornment>
+                        )
+                    }}
                 />
             </Box>
 
@@ -141,7 +156,8 @@ function Login() {
                 "&:hover": {
                     color: "#4F46E5"
                 }
-            }}>
+            }}
+            onClick={() => navigate("/forgot-password")}>
                 Forgot password?
             </Typography>
 
