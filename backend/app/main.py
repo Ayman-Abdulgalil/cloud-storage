@@ -1,17 +1,27 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .api.objects import objects_router
-from .auth import auth_router
+from .api.files import router as files_router
+from .api.auth import router as auth_router
+from .repositories.database import create_pool
 
-app = FastAPI(title="Secure Drive")
 
-app.include_router(objects_router, prefix="/api")
-app.include_router(auth_router, prefix="/api")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.pool = await create_pool()
+    yield
+    await app.state.pool.close()
+
+
+app = FastAPI(title="Secure Drive", lifespan=lifespan)
+
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(files_router, prefix="/api/v1")
 
 if os.environ.get("SERVE_FRONTEND", "0") == "1":
     dist_dir = os.environ.get("FRONTEND_DIST", "")
@@ -22,14 +32,16 @@ if os.environ.get("SERVE_FRONTEND", "0") == "1":
                 "/", StaticFiles(directory=str(dist_path), html=True), name="frontend"
             )
 else:
-    frontend_port = os.environ.get("FRONTEND_PORT", 5173)
+    frontend_port = os.environ.get("FRONTEND_PORT")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
             "http://localhost:" + str(frontend_port),
             "http://127.0.0.1:" + str(frontend_port),
+            os.environ.get("BASE_URL", ""),
         ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    pass

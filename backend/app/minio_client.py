@@ -9,7 +9,7 @@ from minio import Minio
 class MinioSettings:
     access_key: str = os.environ.get("MINIO_ROOT_USER", "minioadmin")
     secret_key: str = os.environ.get("MINIO_ROOT_PASSWORD", "minioadmin")
-    bucket: str = os.environ.get("MINIO_BUCKET", "drive-objects")
+    bucket: str = os.environ.get("MINIO_BUCKET", "drive-files")
     secure: bool = os.environ.get("MINIO_SECURE", "false").lower == "true"
     port: str = os.environ.get("MINIO_API_PORT", "9000")
     host: str = os.environ.get("MINIO_HOST", "minio")
@@ -31,16 +31,16 @@ def ensure_bucket() -> None:
         client.make_bucket(settings.bucket)
 
 
-def make_object_key(user_id: str, object_uuid: Optional[uuid.UUID] = None) -> str:
+def make_file_key(user_id: uuid.UUID | str, file_uuid: Optional[uuid.UUID] = None) -> str:
     """
-    Returns an S3-style object key like: "{user_id}/{uuid}".
+    Returns an S3-style file key like: "{user_id}/{uuid}".
     """
-    u = object_uuid or uuid.uuid4()
+    u = file_uuid or uuid.uuid4()
     return f"{user_id}/{u}"
 
 
 def put_bytes(
-    object_key: str,
+    file_key: str,
     data: BinaryIO,
     *,
     length: int,
@@ -49,14 +49,14 @@ def put_bytes(
     metadata: Optional[dict] = None,
 ) -> None:
     """
-    Upload bytes as an object.
+    Upload bytes as an file.
     - If you don't know length, pass length=-1 and keep a valid part_size
       (MinIO supports multipart uploads this way).
     """
     ensure_bucket()
     client.put_object(
         settings.bucket,
-        object_key,
+        file_key,
         data,
         length=length,
         part_size=part_size if length == -1 else 0,
@@ -65,24 +65,24 @@ def put_bytes(
     )
 
 
-def get_object_stream(object_key: str):
+def get_file_stream(file_key: str):
     """
-    Returns a MinIO response object for streaming.
+    Returns a MinIO response file for streaming.
     Caller must close() and release_conn() when done.
     """
     ensure_bucket()
-    return client.get_object(settings.bucket, object_key)
+    return client.get_object(settings.bucket, file_key)
 
 
-def delete_object(object_key: str) -> None:
+def delete_file(file_key: str) -> None:
     """
-    Delete an object from MinIO storage.
+    Delete an file from MinIO storage.
     
     Args:
-        object_key: The S3-style object key to delete (e.g., "user_id/uuid")
+        file_key: The S3-style file key to delete (e.g., "user_id/uuid")
     
     Raises:
-        Exception: If the object doesn't exist or deletion fails
+        Exception: If the file doesn't exist or deletion fails
     """
     ensure_bucket()
-    client.remove_object(settings.bucket, object_key)
+    client.remove_object(settings.bucket, file_key)
