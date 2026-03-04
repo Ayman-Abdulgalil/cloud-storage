@@ -80,11 +80,6 @@ def _sign(secret: bytes, message: str) -> str:
     return _b64url_encode(sig)
 
 
-def _hash_email(secret: bytes, email: str) -> str:
-    normalised = email.strip().lower()
-    return hmac.HMAC(secret, normalised.encode("utf-8"), hashlib.sha256).hexdigest()
-
-
 def _constant_time_compare(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
 
@@ -140,12 +135,9 @@ def _check_type(payload: _TokenPayload) -> None:
 
 def _check_expiry(payload: _TokenPayload) -> None:
     if int(time.time()) >= payload["exp"]:
+        print(f"Token expired at {payload['exp']} (current time: {int(time.time())})")
+        print("Payload:", payload)
         raise TokenExpiredError("Token has expired.")
-
-
-def _check_user(payload: _TokenPayload, user_id: str) -> None:
-    if not _constant_time_compare(payload["sub"], user_id):
-        raise TokenSubjectError("Token subject does not match the provided user ID.")
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +147,7 @@ def _check_user(payload: _TokenPayload, user_id: str) -> None:
 
 def create_token(
     user_id: str,
-    record_version: int,
-    ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+    ttl_seconds: int = _DEFAULT_TTL_SECONDS, 
 ) -> str:
     """Create and return a signed email verification token for the given user details."""
     secret_key = os.getenv("JWT_SECRET_KEY", "")
@@ -168,12 +159,13 @@ def create_token(
         exp=now + ttl_seconds,
         typ=_TOKEN_TYPE,
     )
-    return _encode_token(key, payload)
+    signed_token = _encode_token(key, payload)
+    print(f"Created token: {signed_token} with payload: {payload}")
+    return signed_token
 
 
 def validate_token(
     signed_token: str,
-    user_id: str,
 ) -> VerificationResult:
     """Validate the token and return the decoded payload if valid, otherwise raise an error."""
     secret_key = os.getenv("JWT_SECRET_KEY", "")
@@ -181,8 +173,11 @@ def validate_token(
     _validate_secret(key)
     payload = _decode_and_verify_signature(key, signed_token)
     _check_type(payload)
-    _check_expiry(payload)
-    _check_user(payload, user_id)
+    try:
+        _check_expiry(payload)
+    except TokenExpiredError:
+        print(f"token: {signed_token}")
+        raise TokenExpiredError("Token has expired.")
 
     return VerificationResult(
         user_id=payload["sub"],
