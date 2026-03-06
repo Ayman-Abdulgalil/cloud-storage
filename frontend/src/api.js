@@ -1,8 +1,9 @@
 // src/api.js
+import { getToken, clearToken } from "./tokenStore";
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 function authHeaders(extraHeaders = {}) {
-  const token = localStorage.getItem("access_token");
+  const token = getToken();
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extraHeaders,
@@ -11,7 +12,7 @@ function authHeaders(extraHeaders = {}) {
 
 async function handleResponse(response) {
   if (response.status === 401) {
-    localStorage.removeItem("access_token");
+    clearToken();
     window.location.href = "/login";
     throw new Error("Session expired. Please log in again.");
   }
