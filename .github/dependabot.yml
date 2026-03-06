@@ -14,6 +14,8 @@ updates:
       python-deps:
         patterns:
           - "*"
+    assignees:
+      - "Ayman-Abdulgalil"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
@@ -29,6 +31,8 @@ updates:
       npm-deps:
         patterns:
           - "*"
+    assignees:
+      - "omojoimadi"
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -44,6 +48,8 @@ updates:
       docker-deps:
         patterns:
           - "*"
+    assignees:
+      - "Ayman-Abdulgalil"
 
   - package-ecosystem: "docker"
     directory: "/backend"
@@ -59,6 +65,8 @@ updates:
       docker-backend-deps:
         patterns:
           - "*"
+    assignees:
+      - "Ayman-Abdulgalil"
 
   - package-ecosystem: "docker"
     directory: "/frontend"
@@ -74,3 +82,7 @@ updates:
       docker-frontend-deps:
         patterns:
           - "*"
+    assignees:
+      - "omojoimadi"
+    reviewers:
+      - "Ayman-Abdulgalil"
