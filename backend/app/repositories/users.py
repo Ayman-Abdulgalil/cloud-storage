@@ -368,8 +368,30 @@ async def update_storage_quota(
 
 
 # ---------------------------------------------------------------------------
-# Soft delete / deactivate
+# Logout, deactivate, delete
 # ---------------------------------------------------------------------------
+
+
+
+async def invalidate_access_tokens(
+    *,
+    conn: asyncpg.Connection,
+    user_id: str | uuid.UUID,
+) -> Record:
+    """Invalidate all access tokens issued for a specific user."""
+
+    id = _normalize_user_id(user_id)
+    row = await conn.fetchrow(
+        """
+        UPDATE users
+        SET valid_since = NOW() AT TIME ZONE 'utc'
+        WHERE user_id = $1
+        RETURNING *
+        """,
+        id,
+    )
+    return _assert_found(row, id)
+
 
 
 async def deactivate_user(
@@ -413,11 +435,6 @@ async def reactivate_user(
         id,
     )
     return _assert_found(row, id)
-
-
-# ---------------------------------------------------------------------------
-# Hard delete (use sparingly – prefer deactivate_user)
-# ---------------------------------------------------------------------------
 
 
 async def delete_user(

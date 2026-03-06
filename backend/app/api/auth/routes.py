@@ -6,6 +6,7 @@ from ...models.token import LoginResponse
 from ...repositories.database import db
 from ...repositories.users import (
     create_user,
+    invalidate_access_tokens,
     mark_verified,
     get_user_by_email,
     record_login,
@@ -21,6 +22,7 @@ from ...models.user import (
     UserResponse,
 )
 from .utils import (
+    get_current_user_id,
     hash_password,
     verify_password,
     create_access_token,
@@ -209,31 +211,17 @@ async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
 #     )
 
 
-# @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-# async def logout(
-#     token_data: RefreshTokenRequest,
-#     current_user: CurrentUser,
-#     db: Annotated[Session, Depends(get_db)],
-# ):
-#     """
-#     Logout by revoking refresh token(s).
-#     """
-#     if token_data and token_data.refresh_token:
-#         # Revoke specific token
-#         token_hash = hash_token(token_data.refresh_token)
-#         db.query(RefreshToken).filter(
-#             RefreshToken.token_hash == token_hash,
-#             RefreshToken.user_id == current_user.user_id,
-#         ).update({"revoked": True})
-#     else:
-#         # Revoke all tokens
-#         db.query(RefreshToken).filter(
-#             RefreshToken.user_id == current_user.user_id,
-#             RefreshToken.revoked.is_(False),
-#         ).update({"revoked": True})
-
-#     db.commit()
-#     return None
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(
+    current_user: str = Depends(get_current_user_id),
+    conn: asyncpg.Connection = Depends(db),
+):
+    """
+    Logout by revoking all access tokens.
+    """
+    
+    await invalidate_access_tokens(conn=conn, user_id=current_user)
+    return None
 
 
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)

@@ -89,3 +89,24 @@ async def get_current_user(
     )
 
     return user_response
+
+async def get_current_user_id(
+    token: str = Depends(oauth2_scheme), conn: asyncpg.Connection = Depends(db)
+) -> str:
+    """Get the current user's ID from the access token."""
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, _SECRET_KEY, algorithms=[_ALGORITHM])
+        uuid: str = payload.get("sub")
+        if uuid is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    return uuid
