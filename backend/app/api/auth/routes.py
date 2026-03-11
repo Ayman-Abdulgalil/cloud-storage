@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 
 from ...models.token import LoginResponse
-from ...repositories.database import db
-from ...repositories.users import (
+from ...database import get_db
+from ...queries.user import (
     create_user,
     invalidate_access_tokens,
     mark_verified,
@@ -36,7 +36,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-async def register(user_data: UserRegister, conn: asyncpg.Connection = Depends(db)):
+async def register(user_data: UserRegister, conn: asyncpg.Connection = Depends(get_db)):
     try:
         new_user: asyncpg.Record = await create_user(
             conn=conn,
@@ -83,7 +83,7 @@ async def register(user_data: UserRegister, conn: asyncpg.Connection = Depends(d
 
 
 @router.post("/resend-verification", status_code=status.HTTP_200_OK)
-async def resend_verification(email: str, conn: asyncpg.Connection = Depends(db)):
+async def resend_verification(email: str, conn: asyncpg.Connection = Depends(get_db)):
     # Find user by email
     user: asyncpg.Record = await get_user_by_email(conn=conn, email=email)
 
@@ -107,7 +107,7 @@ async def resend_verification(email: str, conn: asyncpg.Connection = Depends(db)
 @router.get("/verify/{signed_token}", status_code=status.HTTP_200_OK)
 async def verify_email(
     signed_token: str,
-    conn: asyncpg.Connection = Depends(db),
+    conn: asyncpg.Connection = Depends(get_db),
 ):
     verification_result = validate_token(signed_token=signed_token)
     await mark_verified(
@@ -119,7 +119,7 @@ async def verify_email(
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
-async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
+async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(get_db)):
     # Find user by email
     user: asyncpg.Record = await get_user_by_email(conn=conn, email=credentials.email)
 
@@ -151,7 +151,7 @@ async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
 
 # @router.post("/refresh", response_model=LoginResponse)
 # async def refresh(
-#     token_data: RefreshTokenRequest, db: Annotated[Session, Depends(get_db)]
+#     token_data: RefreshTokenRequest, get_db: Annotated[Session, Depends(get_db)]
 # ):
 #     """
 #     Refresh an access token using a refresh token.
@@ -166,7 +166,7 @@ async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
 #     # Check if token exists in database and is not revoked
 #     token_hash = hash_token(token_data.refresh_token)
 #     stored_token = (
-#         db.query(RefreshToken)
+#         get_db.query(RefreshToken)
 #         .filter(RefreshToken.token_hash == token_hash, RefreshToken.revoked.is_(False))
 #         .first()
 #     )
@@ -184,7 +184,7 @@ async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
 #         )
 
 #     # Get user
-#     user = db.query(User).filter(User.user_id == stored_token.user_id).first()
+#     user = get_db.query(User).filter(User.user_id == stored_token.user_id).first()
 #     if not user:
 #         raise HTTPException(
 #             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
@@ -201,8 +201,8 @@ async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
 #         token_hash=hash_token(new_refresh_token),
 #         expires_at=refresh_expires,
 #     )
-#     db.add(new_refresh_token_record)
-#     db.commit()
+#     get_db.add(new_refresh_token_record)
+#     get_db.commit()
 
 #     return LoginResponse(
 #         access_token=access_token,
@@ -214,7 +214,7 @@ async def login(credentials: UserLogin, conn: asyncpg.Connection = Depends(db)):
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout(
     current_user: str = Depends(get_current_user_id),
-    conn: asyncpg.Connection = Depends(db),
+    conn: asyncpg.Connection = Depends(get_db),
 ):
     """
     Logout by revoking all access tokens.

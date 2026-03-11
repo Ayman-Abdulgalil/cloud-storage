@@ -8,35 +8,12 @@ import os
 import time
 from typing import TypedDict
 from ....models.token import VerificationResult
-
-
-# ---------------------------------------------------------------------------
-# Errors
-# ---------------------------------------------------------------------------
-
-
-class TokenError(Exception):
-    """Base class for all token errors."""
-
-
-class TokenTypeError(TokenError):
-    """Raised when the token type is not recognized."""
-
-
-class TokenVersionError(TokenError):
-    """Raised when the user's record version differs from the token's version."""
-
-
-class TokenExpiredError(TokenError):
-    """Raised when the token has passed its expiry time."""
-
-
-class TokenSubjectError(TokenError):
-    """Raised when the token subject (user ID) is missing or malformed/mismatched."""
-
-
-class TokenSignatureError(TokenError):
-    """Raised when the token signature does not match."""
+from ....queries.exceptions import (
+    TokenError,
+    TokenTypeError,
+    TokenExpiredError,
+    TokenSignatureError,
+)
 
 
 # ---------------------------------------------------------------------------

@@ -18,16 +18,13 @@ async def create_pool() -> asyncpg.Pool:
     )
 
 
-async def db(request: Request) -> AsyncGenerator[asyncpg.Connection, None]:
+async def get_db(request: Request) -> AsyncGenerator[asyncpg.Connection, None]:
     async with request.app.state.pool.acquire() as conn:
         yield conn
 
 
-security = HTTPBearer()
-
-
 async def get_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
 ) -> AsyncGenerator[str, None]:
     token = credentials.credentials  # the raw token, "Bearer" already stripped
     # validate token, fetch user, etc.

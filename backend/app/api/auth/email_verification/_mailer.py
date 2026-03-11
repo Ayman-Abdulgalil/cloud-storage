@@ -10,31 +10,13 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr, parseaddr
 from urllib.parse import quote
 
-
-
-# ---------------------------------------------------------------------------
-# Custom Exceptions
-# ---------------------------------------------------------------------------
-
-
-class MailerError(Exception):
-    """Base exception for all mailer errors."""
-
-
-class InvalidAddressError(MailerError):
-    """Raised when an email address is malformed or empty."""
-
-
-class SMTPConnectionError(MailerError):
-    """Raised when a connection to the SMTP server cannot be established."""
-
-
-class SMTPAuthenticationError(MailerError):
-    """Raised when SMTP credentials are rejected."""
-
-
-class SMTPSendError(MailerError):
-    """Raised when the server refuses to deliver the message."""
+from ....queries.exceptions import (
+    MailerError,
+    SMTPAuthenticationError,
+    SMTPConnectionError,
+    SMTPSendError,
+    InvalidAddressError
+)
 
 
 # ---------------------------------------------------------------------------

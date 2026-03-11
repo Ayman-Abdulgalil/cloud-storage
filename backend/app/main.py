@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.files import router as files_router
 from .api.auth import router as auth_router
-from .repositories.database import create_pool
+from .database import create_pool
 
 
 @asynccontextmanager

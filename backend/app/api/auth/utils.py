@@ -7,8 +7,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 
 from ...models.user import UserResponse
-from ...repositories.database import db
-from ...repositories.users import get_user_by_id
+from ...database import get_db
+from ...queries.user import get_user_by_id
 
 # Configuration
 _SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "")
@@ -59,7 +59,7 @@ def decode_token(token: str) -> dict | None:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), conn: asyncpg.Connection = Depends(db)
+    token: str = Depends(oauth2_scheme), conn: asyncpg.Connection = Depends(get_db)
 ) -> UserResponse:
 
     credentials_exception = HTTPException(
@@ -91,7 +91,7 @@ async def get_current_user(
     return user_response
 
 async def get_current_user_id(
-    token: str = Depends(oauth2_scheme), conn: asyncpg.Connection = Depends(db)
+    token: str = Depends(oauth2_scheme), conn: asyncpg.Connection = Depends(get_db)
 ) -> str:
     """Get the current user's ID from the access token."""
 

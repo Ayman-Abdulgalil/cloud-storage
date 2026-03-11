@@ -7,9 +7,8 @@ import asyncpg
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
-from ..repositories.database import db, get_token
-from ..repositories.files import (
-    FileMeta,
+from ..database import db, get_token
+from ..queries.file import (
     create_file,
     get_file_by_id,
     list_files_by_owner,
@@ -20,7 +19,7 @@ from ..repositories.files import (
     count_files_by_owner,
     total_bytes_by_owner,
 )
-from ..minio_client import (
+from ..queries.file._minio_client import (
     put_bytes,
     get_file_stream,
     make_file_key,
@@ -342,7 +341,7 @@ async def delete_file_endpoint(
     try:
         minio_delete_file(str(meta["file_key"]))
     except Exception as exc:
-        # Log and continue – stale objects can be cleaned up separately
+        # Log and continue - stale objects can be cleaned up separately
         print(f"[WARN] MinIO delete failed for {meta['file_key']}: {exc}")
 
     await repo_delete_file(conn, file_uuid)
